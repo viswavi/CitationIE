@@ -151,7 +151,7 @@ def fetch_s2orc_keys_from_scirex_ids(scirex_doc_ids, data_download_commands):
         s2orc_hash_to_struct_mapping = {}
         start = time.perf_counter()
         for i, s2orc_shard_command in enumerate(data_download_commands):
-            output_path = f"/projects/ogma1/vijayv/ScigraphIE/s2orc_downloads/{s2orc_shard_command[2]}"
+            output_path = f"/projects/metis0_ssd/users/vijayv/ScigraphIE/s2orc_downloads/{s2orc_shard_command[2]}"
             data_url = eval(s2orc_shard_command[3])
             shard_id = get_shard_id_from_path(output_path, data_type="full_text")
             #
@@ -308,7 +308,7 @@ def fetch_s2orc_meta_rows_from_scirex_ids(scirex_document_metadata, metadata_dow
         scirex_s2orc_metadata = {}
         start = time.perf_counter()
         for i, s2orc_shard_command in enumerate(metadata_download_commands):
-            output_path = f"/projects/ogma1/vijayv/ScigraphIE/s2orc_downloads/{s2orc_shard_command[2]}"
+            output_path = f"/projects/metis0_ssd/users/vijayv/ScigraphIE/s2orc_downloads/{s2orc_shard_command[2]}"
             data_url = eval(s2orc_shard_command[3])
             shard_id = get_shard_id_from_path(output_path, data_type="metadata")
             print(f"Starting processing of shard {shard_id}")
@@ -374,7 +374,7 @@ def create_citation_graph_from_seed_nodes(seed_node_ids, metadata_download_comma
             # If we don't have a cache file already, then manually match s2orc and scirex entries
             # (takes several hours and requires downloading and purging tens of GB of data)
             for i, s2orc_shard_command in enumerate(metadata_download_commands):
-                output_path = f"/projects/ogma1/vijayv/ScigraphIE/s2orc_downloads/{s2orc_shard_command[2]}"
+                output_path = f"/projects/metis0_ssd/users/vijayv/ScigraphIE/s2orc_downloads/{s2orc_shard_command[2]}"
                 data_url = eval(s2orc_shard_command[3])
                 shard_id = get_shard_id_from_path(output_path, data_type="metadata")
                 print(f"Starting processing of shard {shard_id}")
@@ -426,6 +426,99 @@ def create_citation_graph_from_seed_nodes(seed_node_ids, metadata_download_comma
             print(f"Creating citation graph of radius {graph_radius} took {time.perf_counter() - function_start} seconds")
 
     return citation_graph_adjacency_lists
+
+
+def construct_neighbor_text(seed_node_ids, metadata_download_commands, full_text_download_commands, out_directory = "/projects/metis0_ssd/users/vijayv/SciREX/s2orc_caches/fulltexts", overwrite_cache=False, num_shards_to_use=None):
+    function_start = time.perf_counter()
+    scigraph_documents_path = os.path.join(out_directory, "scigraph_full_documents.jsonl")
+    doc_to_index_path = os.path.join(out_directory, "doc_to_line_idxs.json")
+    if os.path.exists(doc_to_index_path) and os.path.exists(doc_to_index_path):
+        doc_idx_mapping = json.load(open(doc_to_index_path))
+    else:
+        scigraph_documents_file = open(scigraph_documents_path, 'wb')
+        writer = jsonlines.Writer(scigraph_documents_file)
+
+        (out_edges, in_edges) = create_citation_graph_from_seed_nodes(seed_node_ids, metadata_download_commands, graph_radius=1, overwrite_cache=overwrite_cache, num_shards_to_use=num_shards_to_use)
+        all_neighbors = [v for to_nodes in out_edges.values() for v in to_nodes] + [v for from_nodes in in_edges.values() for v in from_nodes]
+        all_neighbors = set(all_neighbors)
+        doc_idx_mapping = {}
+
+        for i, s2orc_shard_command in enumerate(full_text_download_commands):
+            output_path = f"/projects/metis0_ssd/users/vijayv/ScigraphIE/s2orc_downloads/{s2orc_shard_command[2]}"
+            data_url = eval(s2orc_shard_command[3])
+            shard_id = get_shard_id_from_path(output_path, data_type="full_text")
+            print(f"Starting processing of shard {shard_id}")
+            start = time.perf_counter()
+            if not os.path.exists(output_path):
+                wget.download(data_url, out=output_path)
+            # Time download
+            end = time.perf_counter()
+            print(f"Took {end - start} seconds to download shard {shard_id}\n")
+            start = end
+            # Load and match metadata rows
+            shard = gzip.open(output_path, 'rt')
+            s2orc_metadata = jsonlines.Reader(shard)
+            hits = 0
+            nodes_added = 0
+            for doc in s2orc_metadata:
+                paper_id = doc['paper_id']
+                if paper_id in all_neighbors:
+                    writer.write(doc)
+                    doc_idx_mapping[paper_id] = len(doc_idx_mapping)
+                    all_neighbors.remove(paper_id)
+
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            print(f"Deleted {output_path}")
+            print("\n")
+            if num_shards_to_use is not None and i + 1 >= num_shards_to_use:
+                break
+
+        writer.close()
+        print(f"Wrote {len(doc_idx_mapping)} jsonlines to {scigraph_documents_path}")
+        json.dump(doc_idx_mapping, open(doc_to_index_path, 'w'))
+
+    elapsed = time.perf_counter() - function_start
+    print(f"Constructing neighbor texts took {elapsed} seconds")
+    return doc_idx_mapping, scigraph_documents_path
+
+
+def get_citation_graph(radius):
+    scirex_paper_ids = list(get_scirex_docids())
+
+    metadata_download_commands = open(metadata_download_script).read().split("\n")
+    metadata_download_commands = [x.split() for x in metadata_download_commands if len(x.split()) != 0]
+    full_data_download_commands = open(full_data_download_script).read().split("\n")
+    full_data_download_commands = [x.split() for x in full_data_download_commands if len(x.split()) != 0]
+
+    s2orc_hash_to_struct_mapping = fetch_s2orc_keys_from_scirex_ids(scirex_paper_ids, full_data_download_commands)
+    scirex_s2_metadata = get_semantic_scholar_metadata(scirex_paper_ids, s2orc_hash_to_struct_mapping)
+    scirex_s2orc_metadata = fetch_s2orc_meta_rows_from_scirex_ids(scirex_s2_metadata, metadata_download_commands)
+    s2orc_to_scirex_mappings = {}
+    for scirex, s2orc in scirex_s2orc_metadata.items():
+        s2orc_to_scirex_mappings[s2orc["paper_id"]] = scirex
+
+    (out_edges, in_edges) = create_citation_graph_from_seed_nodes(scirex_paper_ids, metadata_download_commands, graph_radius = radius)
+    out_edges_scirex_keys = {}
+    in_edges_scirex_keys = {}
+    for k, v in out_edges.items():
+        if k in s2orc_to_scirex_mappings:
+            out_edges_scirex_keys[s2orc_to_scirex_mappings[k]] = v
+    for k, v in in_edges.items():
+        if k in s2orc_to_scirex_mappings:
+            in_edges_scirex_keys[s2orc_to_scirex_mappings[k]] = v
+    return out_edges_scirex_keys, in_edges_scirex_keys
+
+
+def get_scirex_neighbor_texts():
+    scirex_paper_ids = list(get_scirex_docids())
+    full_data_download_commands = open(full_data_download_script).read().split("\n")
+    full_data_download_commands = [x.split() for x in full_data_download_commands if len(x.split()) != 0]
+    metadata_download_commands = open(metadata_download_script).read().split("\n")
+    metadata_download_commands = [x.split() for x in metadata_download_commands if len(x.split()) != 0]
+
+    doc_idx_mapping, scigraph_documents_path = construct_neighbor_text(scirex_paper_ids, metadata_download_commands, full_data_download_commands, overwrite_cache=False)
+    return doc_idx_mapping, scigraph_documents_path
 
 
 def construct_graphvite_graph_format(citation_graph,
@@ -547,11 +640,14 @@ def main():
     scirex_s2orc_metadata = fetch_s2orc_meta_rows_from_scirex_ids(scirex_s2_metadata, metadata_download_commands)
 
     scirex_paper_ids = [doc['paper_id'] for doc in scirex_s2orc_metadata.values()]
+    print(f"Constructing neighbor texts")
+    _ = construct_neighbor_text(scirex_paper_ids, metadata_download_commands, full_data_download_commands, overwrite_cache=False)
+    '''
     citation_graph = create_citation_graph_from_seed_nodes(scirex_paper_ids, metadata_download_commands, graph_radius=2, overwrite_cache=False)
 
     construct_graphvite_graph_format(citation_graph)
+    '''
     print("Totally Done.")
-
 
 
 if __name__ == "__main__":
