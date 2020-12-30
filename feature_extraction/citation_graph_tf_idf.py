@@ -15,7 +15,6 @@ import time
 from join_scirex_and_s2orc import (
     S2OrcEntry,
     S2Metadata,
-    create_citation_graph_from_seed_nodes,
     get_citation_graph,
     get_scirex_neighbor_texts
 )
@@ -33,7 +32,7 @@ def load_full_text_documents(path, num_documents_to_load=None):
         reader = jsonlines.open(path)
         docs = []
         for i, doc in enumerate(reader):
-            if i >= num_documents_to_load:
+            if len(docs) >= num_documents_to_load:
                 break
             docs.append(doc)
         return docs
@@ -202,7 +201,7 @@ def main():
         tf_idf_matrix = tf_idf_matrix.tolil()
         print(f"Saved TF-IDF matrix to {args.tf_idf_matrix_file}.")
 
-    (out_edges, in_edges) = get_citation_graph(radius=1)
+    (out_edges, in_edges) = get_citation_graph(radius=1, remap_to_scirex_id=True)
     undirected_edges = merge_adjacency_lists(out_edges, in_edges)
 
     adjacency_lists = [out_edges, in_edges, undirected_edges]

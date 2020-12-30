@@ -14,6 +14,20 @@ full_data_download_script = "/projects/metis0_ssd/users/vijayv/ScigraphIE/full_d
 metadata_download_script = "/projects/metis0_ssd/users/vijayv/ScigraphIE/metadata_downloads.sh"
 caches_directory = "/projects/metis0_ssd/users/vijayv/SciREX/s2orc_caches"
 
+'''
+S2ORC information must be accessed in batches, only fetching what you need at each time (due to its massive size).
+These functions give data download commands for each shard of S2ORC, which can then be fetched via wget when needed.
+'''
+def fetch_full_data_download_commands():
+    full_data_download_commands = open(full_data_download_script).read().split("\n")
+    full_data_download_commands = [x.split() for x in full_data_download_commands if len(x.split()) != 0]
+    return full_data_download_commands
+
+def fetch_metadata_download_commands():
+    metadata_download_commands = open(metadata_download_script).read().split("\n")
+    metadata_download_commands = [x.split() for x in metadata_download_commands if len(x.split()) != 0]
+    return metadata_download_commands
+
 class S2OrcEntry:
     def __init__(self, shard_id, doc_id, doc_hash):
         self.shard_id = shard_id
@@ -299,7 +313,7 @@ def fetch_s2orc_meta_rows_from_scirex_ids(scirex_document_metadata, metadata_dow
 
     field_dicts = load_metadata_into_dicts(scirex_document_metadata)
 
-    scirex_s2orc_metadata_file = os.path.join(caches_directory, "/home/vijayv/pickle_backups/scirex_id_to_s2orc_metadata.pkl")
+    scirex_s2orc_metadata_file = os.path.join(caches_directory, "scirex_id_to_s2orc_metadata.pkl")
     if os.path.exists(scirex_s2orc_metadata_file) and not overwrite_cache:
         scirex_s2orc_metadata = pickle.load(open(scirex_s2orc_metadata_file, 'rb'))
     else:
@@ -482,40 +496,58 @@ def construct_neighbor_text(seed_node_ids, metadata_download_commands, full_text
     print(f"Constructing neighbor texts took {elapsed} seconds")
     return doc_idx_mapping, scigraph_documents_path
 
-
-def get_citation_graph(radius):
+def get_scirex_s2_metadata():
     scirex_paper_ids = list(get_scirex_docids())
-
-    metadata_download_commands = open(metadata_download_script).read().split("\n")
-    metadata_download_commands = [x.split() for x in metadata_download_commands if len(x.split()) != 0]
-    full_data_download_commands = open(full_data_download_script).read().split("\n")
-    full_data_download_commands = [x.split() for x in full_data_download_commands if len(x.split()) != 0]
+    metadata_download_commands = fetch_metadata_download_commands()
+    full_data_download_commands = fetch_full_data_download_commands()
 
     s2orc_hash_to_struct_mapping = fetch_s2orc_keys_from_scirex_ids(scirex_paper_ids, full_data_download_commands)
     scirex_s2_metadata = get_semantic_scholar_metadata(scirex_paper_ids, s2orc_hash_to_struct_mapping)
-    scirex_s2orc_metadata = fetch_s2orc_meta_rows_from_scirex_ids(scirex_s2_metadata, metadata_download_commands)
+    scirex_s2orc_metadata = fetch_s2orc_meta_rows_from_scirex_ids(scirex_s2_metadata, metadata_download_commands)  
+    return scirex_s2orc_metadata
+
+def get_s2orc_scirex_id_mapping():
+    scirex_s2orc_metadata = get_scirex_s2_metadata()
     s2orc_to_scirex_mappings = {}
     for scirex, s2orc in scirex_s2orc_metadata.items():
         s2orc_to_scirex_mappings[s2orc["paper_id"]] = scirex
 
+def get_scirex_to_s2orc_mappings():
+    scirex_s2orc_metadata = get_scirex_s2_metadata()
+    scirex_to_s2orc_mappings = {}
+    for scirex, s2orc in scirex_s2orc_metadata.items():
+        scirex_to_s2orc_mappings[scirex] = s2orc["paper_id"]
+    return scirex_to_s2orc_mappings
+
+
+def get_citation_graph(radius, remap_to_scirex_id = False):
+    scirex_paper_ids = list(get_scirex_docids())
+
+    metadata_download_commands = fetch_metadata_download_commands()
+    s2orc_to_scirex_mappings = get_s2orc_scirex_id_mapping()
     (out_edges, in_edges) = create_citation_graph_from_seed_nodes(scirex_paper_ids, metadata_download_commands, graph_radius = radius)
     out_edges_scirex_keys = {}
     in_edges_scirex_keys = {}
     for k, v in out_edges.items():
-        if k in s2orc_to_scirex_mappings:
-            out_edges_scirex_keys[s2orc_to_scirex_mappings[k]] = v
+        if remap_to_scirex_id:
+            if k in s2orc_to_scirex_mappings:
+                out_edges_scirex_keys[s2orc_to_scirex_mappings[k]] = v
+        else:
+            out_edges_scirex_keys[k] = v
     for k, v in in_edges.items():
-        if k in s2orc_to_scirex_mappings:
-            in_edges_scirex_keys[s2orc_to_scirex_mappings[k]] = v
+        if remap_to_scirex_id:
+            if k in s2orc_to_scirex_mappings:
+                in_edges_scirex_keys[s2orc_to_scirex_mappings[k]] = v
+        else:
+            in_edges_scirex_keys[k] = v
+
     return out_edges_scirex_keys, in_edges_scirex_keys
 
 
 def get_scirex_neighbor_texts():
     scirex_paper_ids = list(get_scirex_docids())
-    full_data_download_commands = open(full_data_download_script).read().split("\n")
-    full_data_download_commands = [x.split() for x in full_data_download_commands if len(x.split()) != 0]
-    metadata_download_commands = open(metadata_download_script).read().split("\n")
-    metadata_download_commands = [x.split() for x in metadata_download_commands if len(x.split()) != 0]
+    full_data_download_commands = fetch_full_data_download_commands()
+    metadata_download_commands = fetch_metadata_download_commands()
 
     doc_idx_mapping, scigraph_documents_path = construct_neighbor_text(scirex_paper_ids, metadata_download_commands, full_data_download_commands, overwrite_cache=False)
     return doc_idx_mapping, scigraph_documents_path
@@ -602,30 +634,11 @@ def construct_graphvite_graph_format(citation_graph,
     directedness = "undirected" if make_undirected else "directed"
     print(f"Creating {directedness} edge lists took {time.perf_counter() - function_start} seconds.")
 
-
-def get_scirex_to_s2orc_mappings():
-    all_scirex_docids = get_scirex_docids()
-    full_data_download_commands = open(full_data_download_script).read().split("\n")
-    full_data_download_commands = [x.split() for x in full_data_download_commands if len(x.split()) != 0]
-    s2orc_hash_to_struct_mapping = fetch_s2orc_keys_from_scirex_ids(all_scirex_docids, full_data_download_commands)
-    scirex_s2_metadata = get_semantic_scholar_metadata(all_scirex_docids, s2orc_hash_to_struct_mapping)
-    metadata_download_commands = open(metadata_download_script).read().split("\n")
-    metadata_download_commands = [x.split() for x in metadata_download_commands if len(x.split()) != 0]
-    scirex_s2orc_metadata = fetch_s2orc_meta_rows_from_scirex_ids(scirex_s2_metadata, metadata_download_commands)
-    scirex_to_s2orc_mappings = {}
-
-    for scirex, s2orc in scirex_s2orc_metadata.items():
-        scirex_to_s2orc_mappings[scirex] = s2orc["paper_id"]
-
-    return scirex_to_s2orc_mappings
-
-
 def main():
     all_scirex_docids = get_scirex_docids()
 
     # This must be obtained by requesting access from the S2ORC team (https://allenai.org/data/s2orc)
-    full_data_download_commands = open(full_data_download_script).read().split("\n")
-    full_data_download_commands = [x.split() for x in full_data_download_commands if len(x.split()) != 0]
+    full_data_download_commands = fetch_full_data_download_commands()
     print("Load existing SciREX-to-S2ORC mappings:")
     s2orc_hash_to_struct_mapping = fetch_s2orc_keys_from_scirex_ids(all_scirex_docids, full_data_download_commands)
     print("Done.\n\n")
@@ -635,8 +648,7 @@ def main():
     print("Done.\n\n")
 
     print("Link SciREX documents with S2ORC documents")
-    metadata_download_commands = open(metadata_download_script).read().split("\n")
-    metadata_download_commands = [x.split() for x in metadata_download_commands if len(x.split()) != 0]
+    metadata_download_commands = fetch_metadata_download_commands()
     scirex_s2orc_metadata = fetch_s2orc_meta_rows_from_scirex_ids(scirex_s2_metadata, metadata_download_commands)
 
     scirex_paper_ids = [doc['paper_id'] for doc in scirex_s2orc_metadata.values()]
