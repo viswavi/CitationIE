@@ -8,6 +8,7 @@ import os
 import pickle
 import random
 import time
+from tqdm import tqdm
 import wget
 
 from citation_graph_tf_idf import load_full_text_documents
@@ -17,24 +18,20 @@ from join_scirex_and_s2orc import (
     get_scirex_docids,
     get_scirex_neighbor_texts,
     get_scirex_to_s2orc_mappings,
-    get_shard_id_from_path,
+    get_shard_id_from_path  ,
     metadata_download_script,
     S2OrcEntry,
     S2Metadata
 )
 
-from spacy.lang.en import English
-
 random_generator = random.Random(0)
-
-# This is a special character that does not occur in any document
-SPECIAL_CHARACTER = chr(10000)
 
 '''
 This function is adapted from https://github.com/allenai/SciREX/blob/master/dygiepp/scripts/data/ace-event/parse_ace_event.py#L294-L375
 
 Creates a spaCy object which provides rule-based tokenization and sentence segmentation.
-The tokenizer treats punctuation (e.g. '[') as unique tokens.
+The tokenizer treats punctuation (e.g. '[') as unique tokens. This segmenter is slow but seems to match
+the tokenization used in the original SciREX dataset.
 '''
 def make_tok_seg():
     '''
@@ -145,35 +142,25 @@ def get_citation_contexts(s2orc_document, scirex_document_s2orc_ids, context_win
                         sentences_tokenized[ind+1] = sentences_tokenized[ind] + sentences_tokenized[ind+1]
                         del sentences_tokenized[ind]
                     else:
-                        from IPython import embed; embed(); raise ValueError("break")
                         raise ValueError("We're assuming the sentence tokenizer split the cite token before one of the brackets")
 
-                try:
-                    [citance_id] = [i for i, sent in enumerate(sentences_tokenized) if "[CITE]" in sent.orth_]
-                except:
-                    from IPython import embed; embed(); raise ValueError("break")
+                [citance_id] = [i for i, sent in enumerate(sentences_tokenized) if "[CITE]" in sent.orth_]
                 start_citance_idx = max(citance_id - context_window_size, 0)
                 end_citance_idx = min(citance_id + 1 + context_window_size, len(sentences_tokenized))
                 
                 context_sentences = sentences_tokenized[start_citance_idx:end_citance_idx]
+                context_sentences = [sentence.as_doc() for sentence in context_sentences]
                 citation_contexts[s2orc_paper_id] = context_sentences
     return citation_contexts
 
 def check_citation_context_quality(sentence, min_num_tokens=10):
     # TODO: add more checks here to ensure we only keep high-quality citation contexts
-    context_string = " ".join([s.orth_ for s in sentence])
+    context_string = " ".join([s.text for s in sentence])
     return len(context_string.split()) >= min_num_tokens
 
 def construct_citation_contexts(document_reader, citing_paper_ids, scirex_document_s2orc_ids, context_window_size=0, max_num_contexts_to_keep=20):
     accumulated_citation_contexts = defaultdict(list)
-    i = 0
-    for doc in document_reader:
-        i += 1
-        if i > 100:
-            break
-
-
-
+    for doc in tqdm(document_reader):
         if doc['paper_id'] not in citing_paper_ids:
             # Can skip papers that we know do not cite any SciREX documents
             continue
@@ -194,7 +181,7 @@ def construct_citation_contexts(document_reader, citing_paper_ids, scirex_docume
 def augment_rows_with_citation_context(original_file_path, new_file_path, citation_contexts, scirex_to_s2orc_id_mapping):
     reader = jsonlines.open(original_file_path)
     writer = jsonlines.open(new_file_path, 'w')
-    for doc in reader:
+    for doc in tqdm(reader):
         doc_id = doc['doc_id']
         if doc_id not in scirex_to_s2orc_id_mapping:
             skip_document = True
@@ -206,7 +193,10 @@ def augment_rows_with_citation_context(original_file_path, new_file_path, citati
                 skip_document = False
                 doc_citation_contexts = citation_contexts[s2orc_paper_id]
 
-        if not skip_document:
+        index_counter = len(doc['words'])
+        if skip_document:
+            doc['citances'] = [index_counter, index_counter]
+        else:
             # augment `doc` with citation contexts
             # Specifically, add these to:
             #   ✓ words 
@@ -219,21 +209,24 @@ def augment_rows_with_citation_context(original_file_path, new_file_path, citati
             sentence_boundaries = []
 
             # Start the index counter at the last word in the un-augmented text.
-            index_counter = len(doc['words'])
+            citances_start = index_counter
             for section in doc_citation_contexts:
                 section_start = index_counter
                 for sentence in section:
                     sentence_start = index_counter
                     for word in sentence:
-                        words.append(word)
+                        words.append(word.orth_)
                         index_counter += 1
                     sentence_end = index_counter
                     sentence_boundaries.append([sentence_start, sentence_end])
                 section_end = index_counter
                 section_boundaries.append([section_start, section_end])
+            citances_end = index_counter
+
             doc['words'].extend(words)
             doc['sentences'].extend(sentence_boundaries)
             doc['sections'].extend(section_boundaries)
+            doc['citances'] = [citances_start, citances_end]
 
         writer.write(doc)
 
@@ -259,27 +252,44 @@ def main():
     scirex_to_s2orc_id_mapping = get_scirex_to_s2orc_mappings()
     scirex_s2orc_ids = set([scirex_to_s2orc_id_mapping[p] for p in scirex_paper_ids if p in scirex_to_s2orc_id_mapping])
 
-    _, in_citations = get_citation_graph(1)
-    citing_paper_ids = list([node for neighbor_set in in_citations.values() for node in neighbor_set])
+    citation_contexts_cache_path = os.path.join(caches_directory, "citation_contexts.pkl")
+    if os.path.exists(citation_contexts_cache_path):
+        citation_contexts = pickle.load(open(citation_contexts_cache_path, 'rb'))
+    else:
+        _, in_citations = get_citation_graph(1)
+        citing_paper_ids = list([node for neighbor_set in in_citations.values() for node in neighbor_set])
 
-    _, scigraph_documents_path = get_scirex_neighbor_texts()
-    document_reader = load_full_text_documents(scigraph_documents_path, num_documents_to_load=args.num_documents_to_load)
+        _, scigraph_documents_path = get_scirex_neighbor_texts()
+        document_reader = load_full_text_documents(scigraph_documents_path, num_documents_to_load=args.num_documents_to_load)
 
-    citation_contexts = construct_citation_contexts(document_reader, citing_paper_ids, scirex_s2orc_ids, context_window_size=2)
+        print(f"Constructing citation contexts")
+        citation_contexts = construct_citation_contexts(document_reader, citing_paper_ids, scirex_s2orc_ids, context_window_size=1)
 
-    #from IPython import embed; embed(); raise ValueError("breakpoint 2")
+        try:
+            pickle.dump(citation_contexts, open(citation_contexts_cache_path, 'wb'))
+        except:
+            print("Error at breakpoint")
+            pass
 
     os.makedirs(args.new_scirex_data_directory, exist_ok=True)
     shutil.copyfile(os.path.join(args.input_scirex_data_directory, "dev.jsonl"),
                     os.path.join(args.new_scirex_data_directory, "dev.jsonl"))
-    shutil.copyfile(os.path.join(args.input_scirex_data_directory, "test.jsonl"),
-                    os.path.join(args.new_scirex_data_directory, "test.jsonl"))
-    # Should we run this for test, and validation too?
+
+    print(f"Writing dataset splits with citation contexts")
+    print("Train")
     augment_rows_with_citation_context(
                     os.path.join(args.input_scirex_data_directory, "train.jsonl"),
                     os.path.join(args.new_scirex_data_directory, "train.jsonl"),
                     citation_contexts,
-                    scirex_to_s2orc_id_mapping)    
+                    scirex_to_s2orc_id_mapping)
+    print("Test")
+    #shutil.copyfile(os.path.join(args.input_scirex_data_directory, "test.jsonl"),
+    #                os.path.join(args.new_scirex_data_directory, "test.jsonl"))
+    augment_rows_with_citation_context(
+                    os.path.join(args.input_scirex_data_directory, "test.jsonl"),
+                    os.path.join(args.new_scirex_data_directory, "test.jsonl"),
+                    citation_contexts,
+                    scirex_to_s2orc_id_mapping)
 
     end = time.perf_counter()
     print(f"Script took {end - start} seconds to run.")
