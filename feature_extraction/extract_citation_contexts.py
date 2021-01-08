@@ -3,15 +3,19 @@ from collections import defaultdict
 import shutil
 import spacy
 import gzip
+import json
 import jsonlines
 import os
+import numpy as np
 import pickle
 import random
 import time
 from tqdm import tqdm
 import wget
 
-from citation_graph_tf_idf import load_full_text_documents
+from feature_extraction.citation_graph_tf_idf import load_full_text_documents
+from feature_extraction.save_graph_embedding_matrix import load_embedding_matrix
+
 from join_scirex_and_s2orc import (
     caches_directory,
     get_citation_graph,
@@ -158,8 +162,8 @@ def check_citation_context_quality(sentence, min_num_tokens=10):
     context_string = " ".join([s.text for s in sentence])
     return len(context_string.split()) >= min_num_tokens
 
-def construct_citation_contexts(document_reader, citing_paper_ids, scirex_document_s2orc_ids, context_window_size=0, max_num_contexts_to_keep=20):
-    accumulated_citation_contexts = defaultdict(list)
+def construct_citation_contexts(document_reader, citing_paper_ids, scirex_document_s2orc_ids, context_window_size=0):
+    accumulated_citation_contexts = defaultdict(dict)
     for doc in tqdm(document_reader):
         if doc['paper_id'] not in citing_paper_ids:
             # Can skip papers that we know do not cite any SciREX documents
@@ -168,14 +172,57 @@ def construct_citation_contexts(document_reader, citing_paper_ids, scirex_docume
                                                       scirex_document_s2orc_ids=scirex_document_s2orc_ids,
                                                       context_window_size=context_window_size)
         for scirex_docid, citation_context in doc_citation_contexts.items():
-            accumulated_citation_contexts[scirex_docid].append(citation_context)
-
-    for scirex_docid in accumulated_citation_contexts:
-        contexts = accumulated_citation_contexts[scirex_docid]
-        contexts = [sentence for sentence in contexts if check_citation_context_quality(sentence)]
-        if len(contexts) > max_num_contexts_to_keep:
-            accumulated_citation_contexts[scirex_docid] = random_generator.sample(contexts, max_num_contexts_to_keep)
+            accumulated_citation_contexts[scirex_docid][doc['paper_id']] = citation_context
     return accumulated_citation_contexts
+
+def construct_graph_embeddings_matrix(citing_paper_ids, document_id_type='scirex'):
+    graph_pickle_file_path = "/projects/metis0_ssd/users/vijayv/SciREX/graph_embeddings/graph.pkl"
+    node_id_mapping_path = "/projects/metis0_ssd/users/vijayv/ScigraphIE/node_id_mapping.json"
+    matrix, doc_id_to_matrix_idx_mapping, average_embedding = load_embedding_matrix(graph_pickle_file_path,
+                                   node_id_mapping_path,
+                                   citing_paper_ids,
+                                   document_id_type=document_id_type)
+    # Initialize an embedding dictionary with a given default value (we use the average embedding
+    # among the provided document ids).
+    embedding_dict = defaultdict(lambda: average_embedding)
+    for doc_id, matrix_idx in doc_id_to_matrix_idx_mapping.items():
+        embedding_dict[doc_id] = matrix[matrix_idx]
+    return embedding_dict
+
+def filter_citation_contexts(all_citation_contexts,
+                             max_num_contexts_to_keep=20,
+                             citance_selection_method='random',
+                             scirex_document_embeddings = None,
+                             citing_paper_embeddings = None):
+    # COPIED
+    if citance_selection_method not in ['random', 'graph_embedding_distance']:
+        raise ValueError(f"Unsupported citance selection method {citance_selection_method} received")
+
+    citation_context_sentences = {}
+    citation_context_sentences_with_docids = {}
+    for scirex_docid in all_citation_contexts:
+        if scirex_docid not in scirex_document_embeddings:
+            print(f"Document {scirex_docid} not in document embeddings")
+        scirex_document_embedding = scirex_document_embeddings[scirex_docid]
+        contexts = all_citation_contexts[scirex_docid]
+        if len(contexts) > max_num_contexts_to_keep:
+            if citance_selection_method == 'random':
+                context_sentences = [sentence for sentence in contexts.values() if check_citation_context_quality(sentence)]
+                citation_context_sentences[scirex_docid] = random_generator.sample(context_sentences, max_num_contexts_to_keep)
+            else:
+                citing_document_ids = list(contexts.keys())
+                dot_scores = np.array([np.linalg.norm(scirex_document_embedding - citing_paper_embeddings[s2orc_id]) for s2orc_id in citing_document_ids])
+                most_similar_citing_document_idxs = np.argsort(dot_scores)[:max_num_contexts_to_keep]
+                citation_context_sentences[scirex_docid] = [contexts[citing_document_ids[idx]] for idx in most_similar_citing_document_idxs]
+
+                # For debugging only
+                citation_context_sentences_with_docids[scirex_docid] = {}
+                for idx in most_similar_citing_document_idxs:
+                    citing_doc_id = citing_document_ids[idx]
+                    citation_context_sentences_with_docids[scirex_docid][citing_document_ids[idx]] = [c.text for c in contexts[citing_doc_id]]
+
+    json.dump(citation_context_sentences_with_docids, open("/tmp/selection_context_sentences.json", 'w'), indent=2)
+    return citation_context_sentences
 
 
 def augment_rows_with_citation_context(original_file_path, new_file_path, citation_contexts, scirex_to_s2orc_id_mapping):
@@ -245,31 +292,59 @@ def main():
                             type=str,
                             default="/projects/metis0_ssd/users/vijayv/SciREX/scirex_dataset/data_with_citances/", 
                             help="If set, we will only extract citation contexts from a limited number of documents.")
+    parser.add_argument('--max_number_of_document_citances',
+                            type=int,
+                            default=20,
+                            help="Limit on the number of citances to write for each document")
+    parser.add_argument('--citance_sorting_style',
+                            type=str,
+                            choices=["random", "graph_embedding_distance"],
+                            default="random",
+                            help="When a paper has more than max_number_of_document_citances citances, the " + \
+                                "requested method is used to select which document citations to include")
     args = parser.parse_args()
 
     # Load citation graph
-    scirex_paper_ids = list(get_scirex_docids())
+    scirex_paper_ids = list(set(get_scirex_docids()))
     scirex_to_s2orc_id_mapping = get_scirex_to_s2orc_mappings()
     scirex_s2orc_ids = set([scirex_to_s2orc_id_mapping[p] for p in scirex_paper_ids if p in scirex_to_s2orc_id_mapping])
 
-    citation_contexts_cache_path = os.path.join(caches_directory, "citation_contexts.pkl")
-    if os.path.exists(citation_contexts_cache_path):
-        citation_contexts = pickle.load(open(citation_contexts_cache_path, 'rb'))
-    else:
-        _, in_citations = get_citation_graph(1)
-        citing_paper_ids = list([node for neighbor_set in in_citations.values() for node in neighbor_set])
+    full_citation_contexts_cache_path = os.path.join(caches_directory, "citation_contexts.pkl")
+    _, in_citations = get_citation_graph(1)
+    citing_paper_ids = list(set([node for neighbor_set in in_citations.values() for node in neighbor_set]))
 
+    if args.citance_sorting_style == "graph_embedding_distance":
+        print("Constructing graph embeddings matrices.")
+        scirex_document_embeddings = construct_graph_embeddings_matrix(list(scirex_s2orc_ids), document_id_type='s2orc')
+        citing_paper_embeddings = construct_graph_embeddings_matrix(citing_paper_ids, document_id_type='s2orc')
+    else:
+        scirex_document_embeddings = None
+        citing_paper_embeddings = None
+
+    if os.path.exists(full_citation_contexts_cache_path):
+        print("Unpickling citation contexts cache.")
+        unpickling_start = time.perf_counter()
+        citation_contexts = pickle.load(open(full_citation_contexts_cache_path, 'rb'))
+        unpickling_end = time.perf_counter()
+        print(f"Unpickling citation contexts cache took {unpickling_end - unpickling_start} seconds")
+    else:
+        print("Manually constructing citation contexts (will take ~2 hours).")
         _, scigraph_documents_path = get_scirex_neighbor_texts()
         document_reader = load_full_text_documents(scigraph_documents_path, num_documents_to_load=args.num_documents_to_load)
 
-        print(f"Constructing citation contexts")
+        print("Constructing citation contexts")
         citation_contexts = construct_citation_contexts(document_reader, citing_paper_ids, scirex_s2orc_ids, context_window_size=1)
+        pickle.dump(citation_contexts, open(full_citation_contexts_cache_path, 'wb'))
 
-        try:
-            pickle.dump(citation_contexts, open(citation_contexts_cache_path, 'wb'))
-        except:
-            print("Error at breakpoint")
-            pass
+
+    citation_contexts_truncated = filter_citation_contexts(citation_contexts,
+                                                           max_num_contexts_to_keep = args.max_number_of_document_citances,
+                                                           citance_selection_method = args.citance_sorting_style,
+                                                           scirex_document_embeddings = scirex_document_embeddings,
+                                                           citing_paper_embeddings = citing_paper_embeddings)
+    #citation_contexts_truncated_file = os.path.join(caches_directory, "citation_contexts_truncated.pkl")
+    #pickle.dump(citation_contexts_truncated, open(citation_contexts_truncated_file, 'wb'))
+    # citation_contexts_truncated = pickle.load(open(citation_contexts_truncated_file, 'rb'))
 
     os.makedirs(args.new_scirex_data_directory, exist_ok=True)
     shutil.copyfile(os.path.join(args.input_scirex_data_directory, "dev.jsonl"),
@@ -280,7 +355,7 @@ def main():
     augment_rows_with_citation_context(
                     os.path.join(args.input_scirex_data_directory, "train.jsonl"),
                     os.path.join(args.new_scirex_data_directory, "train.jsonl"),
-                    citation_contexts,
+                    citation_contexts_truncated,
                     scirex_to_s2orc_id_mapping)
     print("Test")
     #shutil.copyfile(os.path.join(args.input_scirex_data_directory, "test.jsonl"),
@@ -288,7 +363,7 @@ def main():
     augment_rows_with_citation_context(
                     os.path.join(args.input_scirex_data_directory, "test.jsonl"),
                     os.path.join(args.new_scirex_data_directory, "test.jsonl"),
-                    citation_contexts,
+                    citation_contexts_truncated,
                     scirex_to_s2orc_id_mapping)
 
     end = time.perf_counter()

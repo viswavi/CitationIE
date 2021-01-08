@@ -233,7 +233,6 @@ def main():
     visualize_tsne(tsne_data, name2id, node_id_to_scirex_metadata, entity_type_to_label="Metric")
     visualize_tsne(tsne_data, name2id, node_id_to_scirex_metadata, entity_type_to_label="Material")
 
-    from IPython import embed; embed()
     input_s2orc_id = "630188"
     nearest_neighbors(embeddings, name2id, input_s2orc_id, s2orc_id_to_node_id_mapping)
 
