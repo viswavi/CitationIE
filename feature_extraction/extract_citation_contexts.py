@@ -206,7 +206,6 @@ def filter_citation_contexts(all_citation_contexts,
             if scirex_docid not in scirex_document_embeddings:
                 print(f"Document {scirex_docid} not in document embeddings")
             scirex_document_embedding = scirex_document_embeddings[scirex_docid]
-
         if len(contexts) > max_num_contexts_to_keep:
             if citance_selection_method == 'graph_embedding_distance':
                 citing_document_ids = list(contexts.keys())
@@ -221,7 +220,10 @@ def filter_citation_contexts(all_citation_contexts,
             else:
                 context_sentences = [sentence for sentence in contexts.values() if check_citation_context_quality(sentence)]
                 citation_context_sentences[scirex_docid] = random_generator.sample(context_sentences, max_num_contexts_to_keep)
-    json.dump(citation_context_sentences_with_docids, open("/tmp/selection_context_sentences.json", 'w'), indent=2)
+                citation_context_sentences_with_docids[scirex_docid] = []
+                for context in citation_context_sentences[scirex_docid]:
+                    citation_context_sentences_with_docids[scirex_docid].append([c.text for c in context])
+    json.dump(citation_context_sentences_with_docids, open(f"/tmp/selection_context_sentences_{citance_selection_method}.json", 'w'), indent=2)
     return citation_context_sentences
 
 
