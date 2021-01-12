@@ -201,26 +201,26 @@ def filter_citation_contexts(all_citation_contexts,
     citation_context_sentences = {}
     citation_context_sentences_with_docids = {}
     for scirex_docid in all_citation_contexts:
-        if scirex_docid not in scirex_document_embeddings:
-            print(f"Document {scirex_docid} not in document embeddings")
-        scirex_document_embedding = scirex_document_embeddings[scirex_docid]
         contexts = all_citation_contexts[scirex_docid]
+        if citance_selection_method == "graph_embedding_distance":
+            if scirex_docid not in scirex_document_embeddings:
+                print(f"Document {scirex_docid} not in document embeddings")
+            scirex_document_embedding = scirex_document_embeddings[scirex_docid]
+
         if len(contexts) > max_num_contexts_to_keep:
-            if citance_selection_method == 'random':
-                context_sentences = [sentence for sentence in contexts.values() if check_citation_context_quality(sentence)]
-                citation_context_sentences[scirex_docid] = random_generator.sample(context_sentences, max_num_contexts_to_keep)
-            else:
+            if citance_selection_method == 'graph_embedding_distance':
                 citing_document_ids = list(contexts.keys())
                 dot_scores = np.array([np.linalg.norm(scirex_document_embedding - citing_paper_embeddings[s2orc_id]) for s2orc_id in citing_document_ids])
-                most_similar_citing_document_idxs = np.argsort(dot_scores)[:max_num_contexts_to_keep]
+                most_similar_citing_document_idxs = np.argsort(-dot_scores)[:max_num_contexts_to_keep]
                 citation_context_sentences[scirex_docid] = [contexts[citing_document_ids[idx]] for idx in most_similar_citing_document_idxs]
-
                 # For debugging only
                 citation_context_sentences_with_docids[scirex_docid] = {}
                 for idx in most_similar_citing_document_idxs:
                     citing_doc_id = citing_document_ids[idx]
                     citation_context_sentences_with_docids[scirex_docid][citing_document_ids[idx]] = [c.text for c in contexts[citing_doc_id]]
-
+            else:
+                context_sentences = [sentence for sentence in contexts.values() if check_citation_context_quality(sentence)]
+                citation_context_sentences[scirex_docid] = random_generator.sample(context_sentences, max_num_contexts_to_keep)
     json.dump(citation_context_sentences_with_docids, open("/tmp/selection_context_sentences.json", 'w'), indent=2)
     return citation_context_sentences
 
@@ -269,6 +269,9 @@ def augment_rows_with_citation_context(original_file_path, new_file_path, citati
                 section_end = index_counter
                 section_boundaries.append([section_start, section_end])
             citances_end = index_counter
+
+            #section_boundaries = []
+            #section_boundaries.append([citances_start, citances_end])
 
             doc['words'].extend(words)
             doc['sentences'].extend(sentence_boundaries)
@@ -321,6 +324,7 @@ def main():
         scirex_document_embeddings = None
         citing_paper_embeddings = None
 
+
     if os.path.exists(full_citation_contexts_cache_path):
         print("Unpickling citation contexts cache.")
         unpickling_start = time.perf_counter()
@@ -344,7 +348,9 @@ def main():
                                                            citing_paper_embeddings = citing_paper_embeddings)
     #citation_contexts_truncated_file = os.path.join(caches_directory, "citation_contexts_truncated.pkl")
     #pickle.dump(citation_contexts_truncated, open(citation_contexts_truncated_file, 'wb'))
-    # citation_contexts_truncated = pickle.load(open(citation_contexts_truncated_file, 'rb'))
+
+    #citation_contexts_truncated_file = os.path.join(caches_directory, "citation_contexts_truncated.pkl")
+    #citation_contexts_truncated = pickle.load(open(citation_contexts_truncated_file, 'rb'))
 
     os.makedirs(args.new_scirex_data_directory, exist_ok=True)
     shutil.copyfile(os.path.join(args.input_scirex_data_directory, "dev.jsonl"),
