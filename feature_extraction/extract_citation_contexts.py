@@ -355,9 +355,7 @@ def main():
     #citation_contexts_truncated = pickle.load(open(citation_contexts_truncated_file, 'rb'))
 
     os.makedirs(args.new_scirex_data_directory, exist_ok=True)
-    shutil.copyfile(os.path.join(args.input_scirex_data_directory, "dev.jsonl"),
-                    os.path.join(args.new_scirex_data_directory, "dev.jsonl"))
-
+    print(f"Writing dataset splits with citation contexts")
     print(f"Writing dataset splits with citation contexts")
     print("Train")
     augment_rows_with_citation_context(
@@ -365,6 +363,14 @@ def main():
                     os.path.join(args.new_scirex_data_directory, "train.jsonl"),
                     citation_contexts_truncated,
                     scirex_to_s2orc_id_mapping)
+    print("Dev")
+    augment_rows_with_citation_context(
+                    os.path.join(args.input_scirex_data_directory, "dev.jsonl"),
+                    os.path.join(args.new_scirex_data_directory, "dev.jsonl"),
+                    citation_contexts_truncated,
+                    scirex_to_s2orc_id_mapping)
+    # shutil.copyfile(os.path.join(args.input_scirex_data_directory, "dev.jsonl"),
+    #                os.path.join(args.new_scirex_data_directory, "dev.jsonl"))
     print("Test")
     #shutil.copyfile(os.path.join(args.input_scirex_data_directory, "test.jsonl"),
     #                os.path.join(args.new_scirex_data_directory, "test.jsonl"))
