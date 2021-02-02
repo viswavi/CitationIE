@@ -1,3 +1,5 @@
+# These links are expired.
+
 wget -O 20200705v1/full/metadata/metadata_0.jsonl.gz 'https://ai2-s2-s2orc.s3.amazonaws.com/20200705v1/full/metadata/metadata_0.jsonl.gz?AWSAccessKeyId=AKIA5BJLZJPW4OD5EQ2P&Signature=jYQJMdRqh8J%2BU6aojnfBM%2FFzHT8%3D&Expires=1610127434'
 
 wget -O 20200705v1/full/metadata/metadata_1.jsonl.gz 'https://ai2-s2-s2orc.s3.amazonaws.com/20200705v1/full/metadata/metadata_1.jsonl.gz?AWSAccessKeyId=AKIA5BJLZJPW4OD5EQ2P&Signature=zJSeVbB76NyGwRLK6FKV59N%2BEgk%3D&Expires=1610127434'
