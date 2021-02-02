@@ -1,9 +1,9 @@
 '''
 python save_graph_embedding_matrix.py \
---graph_embeddings_pickle /projects/metis0_ssd/users/vijayv/SciREX/graph_embeddings/graph.pkl \
---node_to_id_mapping /projects/metis0_ssd/users/vijayv/ScigraphIE/node_id_mapping.json \
---out_embedding_file /projects/metis0_ssd/users/vijayv/SciREX/graph_embeddings/embeddings.npy \
---out_doc_to_index_mapping_file /projects/metis0_ssd/users/vijayv/SciREX/graph_embeddings/scirex_docids.json
+--graph_embeddings_pickle SciREX/graph_embeddings/graph.pkl \
+--node_to_id_mapping node_id_mapping.json \
+--out_embedding_file SciREX/graph_embeddings/embeddings.npy \
+--out_doc_to_index_mapping_file SciREX/graph_embeddings/scirex_docids.json
 '''
 
 import argparse

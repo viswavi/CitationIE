@@ -10,9 +10,9 @@ import requests
 import time
 import wget #       pip install wget
 
-full_data_download_script = "/projects/metis0_ssd/users/vijayv/ScigraphIE/full_data_downloads.sh"
-metadata_download_script = "/projects/metis0_ssd/users/vijayv/ScigraphIE/metadata_downloads.sh"
-caches_directory = "/projects/metis0_ssd/users/vijayv/SciREX/s2orc_caches"
+full_data_download_script = "full_data_downloads.sh"
+metadata_download_script = "metadata_downloads.sh"
+caches_directory = "SciREX/s2orc_caches"
 
 '''
 S2ORC information must be accessed in batches, only fetching what you need at each time (due to its massive size).
@@ -66,9 +66,9 @@ def scirex_document_to_title(doc):
 
 
 def get_scirex_docids():
-    scirex_train = jsonlines.open("/projects/metis0_ssd/users/vijayv/SciREX/scirex_dataset/release_data/train.jsonl")
-    scirex_test = jsonlines.open("/projects/metis0_ssd/users/vijayv/SciREX/scirex_dataset/release_data/test.jsonl")
-    scirex_dev = jsonlines.open("/projects/metis0_ssd/users/vijayv/SciREX/scirex_dataset/release_data/dev.jsonl")
+    scirex_train = jsonlines.open("SciREX/scirex_dataset/release_data/train.jsonl")
+    scirex_test = jsonlines.open("SciREX/scirex_dataset/release_data/test.jsonl")
+    scirex_dev = jsonlines.open("SciREX/scirex_dataset/release_data/dev.jsonl")
 
     scirex_training_docids = []
     for doc in scirex_train:
@@ -165,7 +165,7 @@ def fetch_s2orc_keys_from_scirex_ids(scirex_doc_ids, data_download_commands):
         s2orc_hash_to_struct_mapping = {}
         start = time.perf_counter()
         for i, s2orc_shard_command in enumerate(data_download_commands):
-            output_path = f"/projects/metis0_ssd/users/vijayv/ScigraphIE/s2orc_downloads/{s2orc_shard_command[2]}"
+            output_path = f"s2orc_downloads/{s2orc_shard_command[2]}"
             data_url = eval(s2orc_shard_command[3])
             shard_id = get_shard_id_from_path(output_path, data_type="full_text")
             #
@@ -322,7 +322,7 @@ def fetch_s2orc_meta_rows_from_scirex_ids(scirex_document_metadata, metadata_dow
         scirex_s2orc_metadata = {}
         start = time.perf_counter()
         for i, s2orc_shard_command in enumerate(metadata_download_commands):
-            output_path = f"/projects/metis0_ssd/users/vijayv/ScigraphIE/s2orc_downloads/{s2orc_shard_command[2]}"
+            output_path = f"s2orc_downloads/{s2orc_shard_command[2]}"
             data_url = eval(s2orc_shard_command[3])
             shard_id = get_shard_id_from_path(output_path, data_type="metadata")
             print(f"Starting processing of shard {shard_id}")
@@ -388,7 +388,7 @@ def create_citation_graph_from_seed_nodes(seed_node_ids, metadata_download_comma
             # If we don't have a cache file already, then manually match s2orc and scirex entries
             # (takes several hours and requires downloading and purging tens of GB of data)
             for i, s2orc_shard_command in enumerate(metadata_download_commands):
-                output_path = f"/projects/metis0_ssd/users/vijayv/ScigraphIE/s2orc_downloads/{s2orc_shard_command[2]}"
+                output_path = f"s2orc_downloads/{s2orc_shard_command[2]}"
                 data_url = eval(s2orc_shard_command[3])
                 shard_id = get_shard_id_from_path(output_path, data_type="metadata")
                 print(f"Starting processing of shard {shard_id}")
@@ -442,7 +442,7 @@ def create_citation_graph_from_seed_nodes(seed_node_ids, metadata_download_comma
     return citation_graph_adjacency_lists
 
 
-def construct_neighbor_text(seed_node_ids, metadata_download_commands, full_text_download_commands, out_directory = "/projects/metis0_ssd/users/vijayv/SciREX/s2orc_caches/fulltexts", overwrite_cache=False, num_shards_to_use=None):
+def construct_neighbor_text(seed_node_ids, metadata_download_commands, full_text_download_commands, out_directory = "SciREX/s2orc_caches/fulltexts", overwrite_cache=False, num_shards_to_use=None):
     function_start = time.perf_counter()
     scigraph_documents_path = os.path.join(out_directory, "scigraph_full_documents.jsonl")
     doc_to_index_path = os.path.join(out_directory, "doc_to_line_idxs.json")
@@ -458,7 +458,7 @@ def construct_neighbor_text(seed_node_ids, metadata_download_commands, full_text
         doc_idx_mapping = {}
 
         for i, s2orc_shard_command in enumerate(full_text_download_commands):
-            output_path = f"/projects/metis0_ssd/users/vijayv/ScigraphIE/s2orc_downloads/{s2orc_shard_command[2]}"
+            output_path = f"s2orc_downloads/{s2orc_shard_command[2]}"
             data_url = eval(s2orc_shard_command[3])
             shard_id = get_shard_id_from_path(output_path, data_type="full_text")
             print(f"Starting processing of shard {shard_id}")

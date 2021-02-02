@@ -46,9 +46,9 @@ def scirex_document_to_title(doc):
 
 
 def get_scirex_docids():
-    scirex_train = jsonlines.open("/projects/metis0_ssd/users/vijayv/SciREX/scirex_dataset/release_data/train.jsonl")
-    scirex_test = jsonlines.open("/projects/metis0_ssd/users/vijayv/SciREX/scirex_dataset/release_data/test.jsonl")
-    scirex_dev = jsonlines.open("/projects/metis0_ssd/users/vijayv/SciREX/scirex_dataset/release_data/dev.jsonl")
+    scirex_train = jsonlines.open("SciREX/scirex_dataset/release_data/train.jsonl")
+    scirex_test = jsonlines.open("SciREX/scirex_dataset/release_data/test.jsonl")
+    scirex_dev = jsonlines.open("SciREX/scirex_dataset/release_data/dev.jsonl")
 
     scirex_training_docids = []
     for doc in scirex_train:

@@ -176,8 +176,8 @@ def construct_citation_contexts(document_reader, citing_paper_ids, scirex_docume
     return accumulated_citation_contexts
 
 def construct_graph_embeddings_matrix(citing_paper_ids, document_id_type='scirex'):
-    graph_pickle_file_path = "/projects/metis0_ssd/users/vijayv/SciREX/graph_embeddings/graph.pkl"
-    node_id_mapping_path = "/projects/metis0_ssd/users/vijayv/ScigraphIE/node_id_mapping.json"
+    graph_pickle_file_path = "SciREX/graph_embeddings/graph.pkl"
+    node_id_mapping_path = "node_id_mapping.json"
     matrix, doc_id_to_matrix_idx_mapping, average_embedding = load_embedding_matrix(graph_pickle_file_path,
                                    node_id_mapping_path,
                                    citing_paper_ids,
@@ -291,11 +291,11 @@ def main():
                             help="If set, we will only extract citation contexts from a limited number of documents.")
     parser.add_argument('--input_scirex_data_directory',
                             type=str,
-                            default="/projects/metis0_ssd/users/vijayv/SciREX/scirex_dataset/release_data/",
+                            default="SciREX/scirex_dataset/release_data/",
                             help="If set, we will only extract citation contexts from a limited number of documents.")
     parser.add_argument('--new_scirex_data_directory',
                             type=str,
-                            default="/projects/metis0_ssd/users/vijayv/SciREX/scirex_dataset/data_with_citances/", 
+                            default="SciREX/scirex_dataset/data_with_citances/", 
                             help="If set, we will only extract citation contexts from a limited number of documents.")
     parser.add_argument('--max_number_of_document_citances',
                             type=int,
