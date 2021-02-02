@@ -1,3 +1,5 @@
+Note: if using the double-blind anonymized version of this repository, then you must fetch its anonymous submodule as well: https://anonymous.4open.science/r/e2824474-31bc-47e2-b142-4292afddfddc/
+
 # ScigraphIE
 This repository serves two purposes:
 1) Provides tools for joining the [SciREX dataset](https://github.com/viswavi/SciREX) with the [S2ORC](https://github.com/allenai/s2orc) citation graph.
