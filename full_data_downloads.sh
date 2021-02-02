@@ -1,3 +1,5 @@
+# These links are expired.
+
 wget -O 20200705v1/full/pdf_parses/pdf_parses_0.jsonl.gz 'https://ai2-s2-s2orc.s3.amazonaws.com/20200705v1/full/pdf_parses/pdf_parses_0.jsonl.gz?AWSAccessKeyId=AKIA5BJLZJPW4OD5EQ2P&Signature=oeu%2FMqT%2BOY1i50zAVifas1YKRzU%3D&Expires=1610127436'
 
 wget -O 20200705v1/full/pdf_parses/pdf_parses_1.jsonl.gz 'https://ai2-s2-s2orc.s3.amazonaws.com/20200705v1/full/pdf_parses/pdf_parses_1.jsonl.gz?AWSAccessKeyId=AKIA5BJLZJPW4OD5EQ2P&Signature=ZOshH8IOnnal36sVTrYqP82QkWg%3D&Expires=1610127436'
