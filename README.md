@@ -7,7 +7,9 @@ This repository serves two purposes:
 2) Provides model training functionality to build models on the joined data from 1)
 
 ## Citation Graph Preparation
-In order to do this step, you must:
+If all you want is a mapping of SciREX document IDs to S2ORC IDs (which are also all valid SemanticScholar IDs), all you need is `scirex_to_s2orc_id_mapping.json`.
+
+If you want to run any of our software, you must:
 1) Download and untar the [SciREX dataset](https://github.com/allenai/SciREX/blob/master/scirex_dataset/release_data.tar.gz)
 2) Request access to the S2ORC dataset
 3) Update `metadata_downloads.sh` and `full_data_downloads.sh` with the scripts given to you by the AllenAI team (these scripts contain API keys that we scrape and use in this library)
