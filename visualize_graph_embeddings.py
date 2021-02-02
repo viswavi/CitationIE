@@ -199,20 +199,20 @@ def nearest_neighbors(embeddings, name2idx, input_s2orc_id, s2orc_id_to_node_id_
         print(f"{distances[array_idx]}\t\t{node_id_to_s2orc_id[int(node_id)]}")
 
 def main():
-    scirex_train = jsonlines.open("SciREXscirex_dataset/release_data/train.jsonl")
-    scirex_test = jsonlines.open("SciREXscirex_dataset/release_data/test.jsonl")
-    scirex_dev = jsonlines.open("SciREXscirex_dataset/release_data/dev.jsonl")
+    scirex_train = jsonlines.open("SciREX/scirex_dataset/release_data/train.jsonl")
+    scirex_test = jsonlines.open("SciREX/scirex_dataset/release_data/test.jsonl")
+    scirex_dev = jsonlines.open("SciREX/scirex_dataset/release_data/dev.jsonl")
     all_scirex_documents = []
     for split in [scirex_train, scirex_test, scirex_dev]:
         for doc in split:
             all_scirex_documents.append(doc)
 
 
-    embeddings, name2id = unpack_embeddings("/projects/ogma1/vijayv/graphvite/graph.pkl")
+    embeddings, name2id = unpack_embeddings("graphvite/graph.pkl")
 
     tsne_data = compute_tsne(embeddings, overwrite_cache=False)
     scirex_to_s2orc_mappings = get_scirex_to_s2orc_mappings()
-    s2orc_id_to_node_id_mapping = json.load(open("/projects/ogma1/vijayv/ScigraphIE/node_id_mapping.json"))
+    s2orc_id_to_node_id_mapping = json.load(open("ScigraphIE/node_id_mapping.json"))
 
     node_id_to_scirex_metadata = {}
     miss_counter1 = 0

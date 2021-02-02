@@ -12,7 +12,7 @@ import wget #       pip install wget
 
 full_data_download_script = "full_data_downloads.sh"
 metadata_download_script = "metadata_downloads.sh"
-caches_directory = "SciREX/s2orc_caches"
+caches_directory = "s2orc_caches"
 
 '''
 S2ORC information must be accessed in batches, only fetching what you need at each time (due to its massive size).
@@ -442,7 +442,7 @@ def create_citation_graph_from_seed_nodes(seed_node_ids, metadata_download_comma
     return citation_graph_adjacency_lists
 
 
-def construct_neighbor_text(seed_node_ids, metadata_download_commands, full_text_download_commands, out_directory = "SciREX/s2orc_caches/fulltexts", overwrite_cache=False, num_shards_to_use=None):
+def construct_neighbor_text(seed_node_ids, metadata_download_commands, full_text_download_commands, out_directory = f"{caches_directory}/fulltexts", overwrite_cache=False, num_shards_to_use=None):
     function_start = time.perf_counter()
     scigraph_documents_path = os.path.join(out_directory, "scigraph_full_documents.jsonl")
     doc_to_index_path = os.path.join(out_directory, "doc_to_line_idxs.json")
@@ -511,6 +511,7 @@ def get_s2orc_scirex_id_mapping():
     s2orc_to_scirex_mappings = {}
     for scirex, s2orc in scirex_s2orc_metadata.items():
         s2orc_to_scirex_mappings[s2orc["paper_id"]] = scirex
+    return s2orc_to_scirex_mappings
 
 def get_scirex_to_s2orc_mappings():
     scirex_s2orc_metadata = get_scirex_s2_metadata()
@@ -647,14 +648,18 @@ def main():
     scirex_s2_metadata = get_semantic_scholar_metadata(all_scirex_docids, s2orc_hash_to_struct_mapping)
     print("Done.\n\n")
 
-    print("Link SciREX documents with S2ORC documents")
+    print("Linking SciREX documents with S2ORC documents")
     metadata_download_commands = fetch_metadata_download_commands()
     scirex_s2orc_metadata = fetch_s2orc_meta_rows_from_scirex_ids(scirex_s2_metadata, metadata_download_commands)
+    print(f"Done linking SciREX and S2ORC!")
 
     scirex_paper_ids = [doc['paper_id'] for doc in scirex_s2orc_metadata.values()]
+    print(f"Linked records for {len(scirex_paper_ids)} documents.")
+
+        '''
     print(f"Constructing neighbor texts")
     _ = construct_neighbor_text(scirex_paper_ids, metadata_download_commands, full_data_download_commands, overwrite_cache=False)
-    '''
+
     citation_graph = create_citation_graph_from_seed_nodes(scirex_paper_ids, metadata_download_commands, graph_radius=2, overwrite_cache=False)
 
     construct_graphvite_graph_format(citation_graph)

@@ -20,8 +20,8 @@ from join_scirex_and_s2orc import (
 )
 
 STOPWORDS_SET = set(stopwords.words('english'))
-TERM_DICTIONARY_FILE = "SciREX/s2orc_caches/fulltexts/term_dictionary.pkl"
-MEMORY_MAPPING_FILE = "SciREX/s2orc_caches/fulltexts/bow.mm"
+TERM_DICTIONARY_FILE = "s2orc_caches/fulltexts/term_dictionary.pkl"
+MEMORY_MAPPING_FILE = "s2orc_caches/fulltexts/bow.mm"
 
 def load_full_text_documents(path, num_documents_to_load=None):
     if num_documents_to_load is None:
@@ -162,9 +162,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--clear-cache', action='store_true',
                         help="Clear cached files for TF-IDF, which will be regenerated from scratch in this run.")
-    parser.add_argument('--tf-idf-matrix-file', default="SciREX/s2orc_caches/fulltexts/tfidf.npz",
+    parser.add_argument('--tf-idf-matrix-file', default="s2orc_caches/fulltexts/tfidf.npz",
                         help='.npz file to store full tf-idf matrix')
-    parser.add_argument('--out-directory', default="SciREX/s2orc_caches/fulltexts/tf_idfs/")
+    parser.add_argument('--out-directory', default="s2orc_caches/fulltexts/tf_idfs/")
     parser.add_argument('--num-documents-to-load', default=None, type=int)
     args = parser.parse_args()
 
