@@ -18,10 +18,11 @@ After this, run `python join_scirex_and_s2orc.py`. This script will run for at l
 
 Once this is done, you can do:
 ```
-from join_scirex_and_s2orc import get_scirex_to_s2orc_mappings, S2OrcEntry, S2Metadata
+from join_scirex_and_s2orc import get_scirex_to_s2orc_mappings, get_citation_graph, S2OrcEntry, S2Metadata
 scirex_to_s2orc_mapping = get_scirex_to_s2orc_mappings() # Find S2ORC/S2 ids for a given SciREX document
+citation_graph = get_citation_graph(2) # Construct a citation graph of all documents within 2 hops of a document in SciREX
+
 ```
-and also many more fancy, task-specific operations on the citation graph.
 
 Alternatively, if all you're looking for is pretrained graph embeddings for each document in SciREX, see `SciREX/graph_embeddings/`
 
