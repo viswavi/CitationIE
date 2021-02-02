@@ -1,9 +1,28 @@
 # ScigraphIE
+This repository serves two purposes:
+1) Provides tools for joining the [SciREX dataset](https://github.com/viswavi/SciREX) with the [S2ORC](https://github.com/allenai/s2orc) citation graph.
+2) Provides model training functionality to build models on the joined data from 1)
 
 ## Citation Graph Preparation
+In order to do this step, you must:
+1) Download and untar the [SciREX dataset](https://github.com/allenai/SciREX/blob/master/scirex_dataset/release_data.tar.gz)
+2) Request access to the S2ORC dataset
+3) Update `metadata_downloads.sh` and `full_data_downloads.sh` with the scripts given to you by the AllenAI team (these scripts contain API keys that we scrape and use in this library)
+
+After this, run `python join_scirex_and_s2orc.py`. This script will run for at least 5 hours, requires at least 3 GB of disk space, and downloaded a hundred of gigabytes of S2ORC data over the internet (though this data is deleted as soon as it is used).
+
+Once this is done, you can do:
+```
+from join_scirex_and_s2orc import get_scirex_to_s2orc_mappings, S2OrcEntry, S2Metadata
+scirex_to_s2orc_mapping = get_scirex_to_s2orc_mappings() # Find S2ORC/S2 ids for a given SciREX document
+```
+and also many more fancy, task-specific operations on the citation graph.
+
+Alternatively, if all you're looking for is pretrained graph embeddings for each document in SciREX, see `SciREX/graph_embeddings/`
+
 
 ## Model training
-To install all dependencies for model training, please follow the instructions in the [SciREX repository](https://github.com/viswavi/SciREX). In particular, you will need to download an official release of the SciREX dataset, and download a trained copy of SciBERT to your machine. All commands listed here assume you are at the root of the SciREX directory (which is a submodule of this repository).
+To install all dependencies for model training, please follow the instructions in the [SciREX repository](https://github.com/viswavi/SciREX). In particular, you will need to untar the [SciREX dataset](https://github.com/allenai/SciREX/blob/master/scirex_dataset/release_data.tar.gz), and download a trained copy of SciBERT to your machine. All commands listed here assume you are at the root of the SciREX directory (which is a submodule of this repository).
 
 We provide scripts for training 4 kinds of models:
 - End-to-End Information Extraction (`scirex/commands/train_scirex_model.sh`)
