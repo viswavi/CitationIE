@@ -3,7 +3,7 @@ Note: if using the double-blind anonymized version of this repository, then you 
 # ScigraphIE
 ![alt tag](banner.jpg)
 This repository serves two purposes:
-1) Provides tools for joining the [SciREX dataset](https://github.com/viswavi/SciREX) with the [S2ORC](https://github.com/allenai/s2orc) citation graph.
+1) Provides tools for joining the [SciREX dataset](https://github.com/allenai/SciREX) with the [S2ORC](https://github.com/allenai/s2orc) citation graph.
 2) Provides model training functionality to build models on the joined data from 1)
 
 ## Citation Graph Preparation
@@ -27,7 +27,7 @@ Alternatively, if all you're looking for is pretrained graph embeddings for each
 
 
 ## Model training
-To install all dependencies for model training, please follow the instructions in the [SciREX repository](https://github.com/viswavi/SciREX). In particular, you will need to untar the [SciREX dataset](https://github.com/allenai/SciREX/blob/master/scirex_dataset/release_data.tar.gz), and download a trained copy of SciBERT to your machine. All commands listed here assume you are at the root of the SciREX directory (which is a submodule of this repository).
+To install all dependencies for model training, please follow the instructions in the [SciREX repository](https://github.com/allenai/SciREX). In particular, you will need to untar the [SciREX dataset](https://github.com/allenai/SciREX/blob/master/scirex_dataset/release_data.tar.gz), and download a trained copy of SciBERT to your machine. All commands listed here assume you are at the root of the SciREX directory (which is a submodule of this repository).
 
 We provide scripts for training 4 kinds of models:
 - End-to-End Information Extraction (`scirex/commands/train_scirex_model.sh`)
