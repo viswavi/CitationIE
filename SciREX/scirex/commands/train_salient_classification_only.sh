@@ -23,9 +23,9 @@ export OUTPUT_BASE_PATH=${OUTPUT_DIR:-outputs/pwc_outputs/experiment_salient_onl
 
 export bert_fine_tune=10,11,pooler
 export finetune_embedding=false
-if [ -z citation_embedding_file ]; then
-    citation_embedding_file=""
-    doc_to_idx_mapping_file="";
+if [ -z ${citation_embedding_file+x} ]; then
+    export citation_embedding_file=""
+    export doc_to_idx_mapping_file="";
 fi
 nw=1 lw=1 rw=1 em=false \
 relation_cardinality=4 \

@@ -26,12 +26,12 @@ export OUTPUT_BASE_PATH=${OUTPUT_DIR:-outputs/pwc_outputs/experiment_scirex_full
 export bert_fine_tune=10,11,pooler
 export finetune_embedding=false
 
-if [ -z citation_embedding_file ]; then
-    citation_embedding_file=""
-    doc_to_idx_mapping_file=""
+if [ -z ${citation_embedding_file+x} ]; then
+    export citation_embedding_file=""
+    export doc_to_idx_mapping_file=""
+    export use_citation_graph_embeddings=false
 fi
 
 nw=1 lw=1 rw=1 em=false \
 relation_cardinality=4 \
-use_citation_graph_embeddings=true \
 allennlp train -s $OUTPUT_BASE_PATH --include-package scirex $RECOVER $CONFIG_FILE
