@@ -47,7 +47,7 @@ In order to train *citation graph-enhanced models* for any of the above, set the
 ```
 export use_citation_graph_embeddings=true
 export citation_embedding_file=graph_embeddings/embeddings.npy
-export citation_embedding_file=graph_embeddings/scirex_docids.json
+export doc_to_idx_mapping_file=graph_embeddings/scirex_docids.json
 ```
 
 In order to train *citance-enhanced models*, do `export DATA_BASE_PATH=scirex_dataset/data_with_citances` before running your desired training command.
