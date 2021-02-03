@@ -1,5 +1,3 @@
-Note: if using the double-blind anonymized version of this repository, then you must fetch its anonymous submodule as well: https://anonymous.4open.science/r/e2824474-31bc-47e2-b142-4292afddfddc/
-
 # ScigraphIE
 ![alt tag](banner.jpg)
 This repository serves two purposes:
