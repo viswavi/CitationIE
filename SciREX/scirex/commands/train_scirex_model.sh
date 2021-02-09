@@ -20,8 +20,11 @@ export DEV_PATH=$DATA_BASE_PATH/dev.jsonl
 export TEST_PATH=$DATA_BASE_PATH/test.jsonl
 
 if [ -z ${use_citation_graph_embeddings+x} ]; then export use_citation_graph_embeddings=false; fi
+if [ -z ${random_seed+x} ]; then export random_seed=13370; fi
+if [ -z ${numpy_seed+x} ]; then export numpy_seed=1337; fi
+if [ -z ${pytorch_seed+x} ]; then export pytorch_seed=133; fi
 
-export OUTPUT_BASE_PATH=${OUTPUT_DIR:-outputs/pwc_outputs/experiment_scirex_full_graph/$1}
+export OUTPUT_BASE_PATH=${OUTPUT_DIR:-outputs/pwc_outputs/experiment_scirex_full_graph_${pytorch_seed}/$1}
 
 export bert_fine_tune=10,11,pooler
 export finetune_embedding=false

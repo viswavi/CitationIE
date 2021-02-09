@@ -19,7 +19,10 @@ export TRAIN_PATH=$DATA_BASE_PATH/train.jsonl
 export DEV_PATH=$DATA_BASE_PATH/dev.jsonl
 export TEST_PATH=$DATA_BASE_PATH/test.jsonl
 
-export OUTPUT_BASE_PATH=${OUTPUT_DIR:-outputs/pwc_outputs/experiment_relations_only_with_graph_embeddings_early_fusion/$1}
+if [ -z ${random_seed+x} ]; then export random_seed=13370; fi
+if [ -z ${numpy_seed+x} ]; then export numpy_seed=1337; fi
+if [ -z ${pytorch_seed+x} ]; then export pytorch_seed=133; fi
+export OUTPUT_BASE_PATH=${OUTPUT_DIR:-outputs/pwc_outputs/experiment_relations_only_${pytorch_seed}/$1}
 
 export bert_fine_tune=10,11,pooler
 
