@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 class SalientOnlyModel(Model):
     def __init__(
         self,
-        use_citation_graph_embeddings: str,
+        use_citation_graph_embeddings: bool,
         citation_embedding_file: str,
         doc_to_idx_mapping_file: str,
         finetune_embedding: bool,
@@ -54,7 +54,6 @@ class SalientOnlyModel(Model):
             self._document_embedding = initialize_graph_embeddings(citation_embedding_file, finetune_embedding=finetune_embedding)
             self._doc_to_idx_mapping = json.load(open(doc_to_idx_mapping_file))
         else:
-            raise ValueError("Only training graph embedding models is supported right now. Use the original SciREX repo to train baselines.")
             self._document_embedding = None
             self._doc_to_idx_mapping = None
 
@@ -222,7 +221,7 @@ class SalientOnlyModel(Model):
                 metadata=metadata,
             )
         else:
-            device = output_span_embedding["spans"].device
+            device = span_cluster_labels.device
             output_saliency["loss"] = torch.tensor(0.0, device=device, requires_grad=True)
 
         return output_saliency

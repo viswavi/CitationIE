@@ -22,6 +22,8 @@ export TEST_PATH=$DATA_BASE_PATH/test.jsonl
 if [ -z ${random_seed+x} ]; then export random_seed=13370; fi
 if [ -z ${numpy_seed+x} ]; then export numpy_seed=1337; fi
 if [ -z ${pytorch_seed+x} ]; then export pytorch_seed=133; fi
+if [ -z ${use_citation_graph_embeddings+x} ]; then export use_citation_graph_embeddings=false; fi
+if $use_citation_graph_embeddings; then export graph_embedding_dim=128; else export graph_embedding_dim=0; fi
 
 export OUTPUT_BASE_PATH=${OUTPUT_DIR:-outputs/pwc_outputs/experiment_salient_only_${pytorch_seed}/$1}
 
@@ -33,5 +35,4 @@ if [ -z ${citation_embedding_file+x} ]; then
 fi
 nw=1 lw=1 rw=1 em=false \
 relation_cardinality=4 \
-use_citation_graph_embeddings=true \
 allennlp train -s $OUTPUT_BASE_PATH --include-package scirex $RECOVER $CONFIG_FILE

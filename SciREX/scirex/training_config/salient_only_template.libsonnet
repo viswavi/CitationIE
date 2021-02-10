@@ -5,7 +5,7 @@ function(p) {
 
   local bert_base_dim = 768,
   local lstm_hidden_size = 200,
-  local graph_embedding_dim = 128,
+  local graph_embedding_dim = std.extVar("graph_embedding_dim"),
   local token_embedding_dim = bert_base_dim,
   local context_encoder_dim = 2 * lstm_hidden_size,
   local endpoint_span_embedding_dim = 2 * context_encoder_dim,
