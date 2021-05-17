@@ -1,0 +1,6 @@
+[submodule "SciREX_"]
+	path = SciREX_
+	url = https://github.com/viswavi/SciREX.git
+[submodule "SciREX"]
+	path = SciREX
+	url = https://github.com/viswavi/SciREX.git
