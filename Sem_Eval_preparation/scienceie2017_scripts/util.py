@@ -104,7 +104,7 @@ class PubHandler(xml.sax.ContentHandler):
             self.textbuilder.append(content)
 
 
-def parseXML(fpath="data/dev/S0010938X13003818.xml"):
+def parseXML(fpath="data/dev/S0010938X13003818.xml", print_out=True):
     '''
     Parse XML files to retrieve full publication text
     :param fpath: path to file
@@ -121,12 +121,17 @@ def parseXML(fpath="data/dev/S0010938X13003818.xml"):
 
     parser.parse(fpath)
 
-    print("Title:", Handler.title)
+    if print_out:
+        print("Title:", Handler.title)
     for h in Handler.highlights:
-        print("Highlight:", h)
-    print("Abstract:", Handler.abstract)
+        if print_out:
+            print("Highlight:", h)
+    if print_out:
+        print("Abstract:", Handler.abstract)
     for n, t in Handler.text.items():
-        print("Text:", t)
+        if print_out:
+            print("Text:", t)
+    return Handler
 
 
 def parseXMLAll(dirpath = "data/dev/"):
@@ -148,7 +153,9 @@ def readAnn(textfolder = "data/dev/"):
     '''
 
     flist = os.listdir(textfolder)
+    all_annotations = {}
     for f in flist:
+        file_annotations =  []
         if not f.endswith(".ann"):
             continue
         f_anno = open(os.path.join(textfolder, f), "rU")
@@ -160,7 +167,20 @@ def readAnn(textfolder = "data/dev/"):
 
         for l in f_anno:
             anno_inst = l.strip("\n").split("\t")
-            if len(anno_inst) == 3:
+            if "synonym" in l.lower() or "hyponym"  in l.lower():
+                l = l.replace("Arg1:", "").replace("Arg2:", "")
+                anno_inst = l.strip("\n").split()
+                annotation_line_code = anno_inst[0]
+                relation_type = anno_inst[1]
+                relation_args = anno_inst[2:]
+                annotation = {
+                                "type": "relation",
+                                "relation_type": relation_type,
+                                "relation_args": relation_args,
+                                "annotation_line_code": annotation_line_code
+                }
+            elif len(anno_inst) == 3:
+                annotation_line_code = anno_inst[0]
                 anno_inst1 = anno_inst[1].split(" ")
                 if len(anno_inst1) == 3:
                     keytype, start, end = anno_inst1
@@ -173,8 +193,20 @@ def readAnn(textfolder = "data/dev/"):
                     keyphr_ann = anno_inst[2]
                     if keyphr_text_lookup != keyphr_ann:
                         print("Spans don't match for anno " + l.strip() + " in file " + f)
+                annotation = {
+                                "type": "entity",
+                                "start": start,
+                                "end": end,
+                                "keytype": keytype,
+                                "keyphr_ann": keyphr_ann,
+                                "annotation_line_code": annotation_line_code
+                }
+            file_annotations.append(annotation)
+
+        all_annotations[f] = (text, file_annotations)
+    return all_annotations
 
 
 if __name__ == '__main__':
     #parseXML()
-    readAnn()
+    _ = readAnn()
