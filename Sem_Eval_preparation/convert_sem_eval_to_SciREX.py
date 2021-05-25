@@ -38,7 +38,13 @@ def match_char_index_to_words(char_idx, word_indices, start_word=False):
                 return i
     return -1
 
+def index_intersection(start_a, end_a, start_b, end_b):
+    range_a = set(range(start_a, end_a))
+    range_b = set(range(start_b, end_b))
+    return len(range_a.intersection(range_b)) > 0
+
 def convert_single_document_to_scirex(doc_id, semeval_doc):
+    print(f"doc_id: {doc_id}")
     reformatted = {} # Keys: coref, coref_non_salient, doc_id, method_subrelations, n_ary_relations, ner, sections, sentences, words
     # TODO:  n_ary_relations, ner
     # DONE:  coref, doc_id, sections, sentences, words
@@ -55,66 +61,96 @@ def convert_single_document_to_scirex(doc_id, semeval_doc):
     reformatted["doc_id"] = doc_id
 
     # Empty/unused fields
-    coref_non_salient = []
-    reformatted["coref_non_salient"] = coref_non_salient
-    method_subrelations = []
-    reformatted["method_subrelations"] = method_subrelations
+    #coref_non_salient = []
+    #reformatted["coref_non_salient"] = coref_non_salient
+    #method_subrelations = []
+    #reformatted["method_subrelations"] = method_subrelations
 
     # Coreference clusters (each word goes to separate cluster)
     corefs = {}
     ner = []
     relations = []
     entity_code_mappings = {}
+    reverse_entity_code_mappings = {}
+
+    previous_index = -1
+
+    entity_annotations = [annotation for annotation in annotations if annotation["type"] == "entity"]
+    try:
+        entity_annotations = sorted(entity_annotations, key = lambda x: int(x['start']))
+    except:
+        breakpoint()
+    relation_annotations = [annotation for annotation in annotations if annotation["type"] == "relation"]
+
+    relation_arguments = []
+    for annotation in relation_annotations:
+        relation_arguments.extend(annotation["relation_args"])
+
     # NER
-    for doc_idx, annotation in enumerate(annotations):
-        if annotation["type"] == "entity":
-            char_start = int(annotation['start'])
-            char_end = int(annotation['end'])
-            entity_type = annotation['keytype']
-            entity_code = annotation['annotation_line_code']
+    for annotation in entity_annotations:
+        char_start = int(annotation['start'])
+        char_end = int(annotation['end'])
+        entity_type = annotation['keytype']
+        entity_code = annotation['annotation_line_code']
 
-            start_word = match_char_index_to_words(char_start, word_indices, start_word=True)
-            end_word = match_char_index_to_words(char_end, word_indices, start_word=False)
-            if start_word == -1 or end_word == -1:
-                breakpoint()
-            ner.append([start_word, end_word + 1, entity_type])
-            # TODO: figure out what we need to add in here
-            entity_code_mappings[entity_code] = None
+        start_word = match_char_index_to_words(char_start, word_indices, start_word=True)
+        end_word = match_char_index_to_words(char_end, word_indices, start_word=False) + 1
 
-            entity_phrase = " ".join(words[start_word:end_word+1])
-            word_key = f"{entity_phrase}_{entity_code}"
-            if word_key in corefs:
-                marker = "Already seen"
-                breakpoint()
-            corefs[word_key] = [[start_word, end_word + 1]]
-            entity_code_mappings[entity_code] = word_key
+        entity_phrase = " ".join(words[start_word:end_word])
+        word_key = f"{entity_phrase}_{entity_code}"
+
+        previous_matching_keys = [k for k, v in corefs.items() if index_intersection(start_word, end_word, v[0][0], v[0][1])]
+
+        # assert len(previous_matching_keys) <= 1, breakpoint()
+        if len(previous_matching_keys) == 1:
+            previous_entity_code = reverse_entity_code_mappings[previous_matching_keys[0]]
+            if entity_code in relation_arguments and previous_entity_code not in relation_arguments:
+                del corefs[previous_matching_keys[0]]
+                del entity_code_mappings[previous_entity_code]
+                matching_named_entities = [i for i, ne in enumerate(ner) if index_intersection(start_word, end_word, ne[0], ne[1])]
+                assert len(matching_named_entities) == 1, breakpoint()
+                del ner[matching_named_entities[0]]
+            elif entity_code not in relation_arguments and previous_entity_code in relation_arguments:
+                continue
+            elif entity_code in relation_arguments and previous_entity_code in relation_arguments:
+                continue
+            elif entity_code not in relation_arguments and previous_entity_code not in relation_arguments:
+                continue
+
+        ner.append([start_word, end_word, entity_type])
+
+        corefs[word_key] = [[start_word, end_word]]
+        entity_code_mappings[entity_code] = word_key
+        reverse_entity_code_mappings[word_key] = entity_code
 
     # Relations
-    for annotation in annotations:
-        if annotation['type'] != "relation":
-            continue
+    for annotation in relation_annotations:
         relation_type = annotation["relation_type"]
         relation_args = annotation["relation_args"]
         if relation_type == "Hyponym-of":
             assert len(relation_args) == 2, breakpoint()
+            if relation_args[0] not in entity_code_mappings or relation_args[1] not in entity_code_mappings:
+                continue
             relation = {
-                "Arg1": relation_args[0],
-                "Arg2": relation_args[1],
+                "Arg1": entity_code_mappings[relation_args[0]],
+                "Arg2": entity_code_mappings[relation_args[1]],
                 "Type": relation_type,
             }
             relations.append(relation)
         elif relation_type == "Synonym-of":
             assert len(relation_args) >= 2
             for i in range(len(relation_args)-1):
+                if relation_args[i] not in entity_code_mappings or relation_args[i+1] not in entity_code_mappings:
+                    continue
                 relation = {
-                    "Arg1": relation_args[i],
-                    "Arg2": relation_args[i+1],
+                    "Arg1": entity_code_mappings[relation_args[i]],
+                    "Arg2": entity_code_mappings[relation_args[i+1]],
                     "Type": relation_type,
                 }
                 relations.append(relation)
         else:
-            breakpoint()
-            raise ValueError("!")
+            raise ValueError("Invalid")
+
 
     reformatted["coref"] = corefs
     reformatted["ner"] = ner
