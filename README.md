@@ -85,3 +85,15 @@ relation_bootstrap_comparison_bucketing_on_graph_degree.py
 relation_bootstrap_comparison_bucketing_on_graph_degree_multi_model.py
 
 salient_bootstrap_comparison_bucketing_on_graph_degree.py
+
+## Citation
+```
+@inproceedings{scigraph-ie,
+    title = {Leveraging the Citation Graph for Scientific Information Extraction},
+    author = {Vijay Viswanathan and Graham Neubig and Pengfei Liu},
+    booktitle = {Joint Conference of the 59th Annual Meeting of the Association for Computational Linguistics and the 11th International Joint Conference on Natural Language Processing (ACL-IJCNLP)},
+    address = {Virtual},
+    month = {August},
+    year = {2021}
+}
+```
