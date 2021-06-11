@@ -1,4 +1,6 @@
 # CitationIE
+Code for the paper "CitationIE: Leveraging the Citation Graph for Scientific Information Extraction" at ACL 2021.
+
 ![alt tag](banner.jpg)
 This repository serves two purposes:
 1) Provides tools for joining the [SciREX dataset](https://github.com/allenai/SciREX) with the [S2ORC](https://github.com/allenai/s2orc) citation graph.
